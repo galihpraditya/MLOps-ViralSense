@@ -1,0 +1,8 @@
+pandas
+scikit-learn
+mlflow
+google-api-python-client
+dvc
+apache-airflow
+fastapi
+uvicorn
