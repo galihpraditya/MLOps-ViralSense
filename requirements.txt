@@ -6,3 +6,6 @@ dvc
 apache-airflow
 fastapi
 uvicorn
+yt-dlp
+pyyaml
+pyarrow

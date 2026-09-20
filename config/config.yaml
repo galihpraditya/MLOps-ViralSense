@@ -1,0 +1,56 @@
+# Konfigurasi Pipeline MLOps - ViralSense
+pipeline:
+  name: "viralsense-data-pipeline"
+  version: "1.1.0"
+  timezone: "Asia/Jakarta"
+
+data_sources:
+  youtube:
+    enabled: true
+    region_code: "ID"
+    include_trending_chart: true
+    min_view_count: 5000 # Menolak video 0 views agar hanya menangkap yang benar-benar viral/menuju viral
+    queries:
+      - "shorts viral indonesia"
+      - "shorts ngakak viral indonesia"
+      - "shorts kuliner viral indonesia"
+      - "racun shopee viral #shorts"
+      - "ide konten viral indonesia #shorts"
+      - "tips bisnis viral #shorts"
+    max_results_per_query: 25
+    quota_limit_per_day: 10000
+  
+  tiktok:
+    enabled: true
+    feed_regions:
+      - "ID"
+    batch_limit: 30
+    hashtags:
+      - "fyp"
+      - "viral"
+      - "trending"
+      - "racuntiktok"
+      - "idekonten"
+      - "bisnisviral"
+
+storage:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  clean_data_path: "data/processed/clean_videos.parquet"
+  features_data_path: "data/processed/features_matrix.parquet"
+
+cleaning:
+  max_video_duration_seconds: 60  # Batas durasi format short-form
+  min_view_count: 10
+  deduplicate_keys:
+    - "platform"
+    - "video_id"
+
+features:
+  velocity_window_hours_default: 24
+  virality_percentile_threshold: 0.90 # Top 10% diklasifikasikan viral
+  min_engagement_denominator: 1
+
+versioning:
+  dvc_remote: "dagshub-storage"
+  version_prefix: "data-v"
