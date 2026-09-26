@@ -54,7 +54,9 @@ This repository adheres to the **Cookiecutter Data Science** standard:
 ├── notebooks/             # Exploratory Data Analysis (EDA) and prototype notebooks
 ├── src/                   # Production-grade source code
 │   ├── __init__.py
-│   ├── data/              # Data ingestion and validation modules
+│   ├── ingest_data.py     # Unified dynamic data ingestion & periodic simulation script
+│   ├── preprocess.py      # Automated preprocessing (tokenization, stopwords, missing values)
+│   ├── data/              # Modular data extraction and validation modules
 │   │   ├── clean.py       # Data cleaning, deduplication, and schema validation
 │   │   ├── ingest_tiktok.py  # TikTok live FYP and trending ingestion
 │   │   └── ingest_youtube.py # YouTube Data API v3 and trending ingestion
@@ -79,21 +81,43 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-### 2. Data Ingestion (Raw Extraction)
-Execute scheduled extractors for YouTube Shorts and TikTok:
-```bash
-# Ingest YouTube Shorts (trending charts and broad query search)
-python src/data/ingest_youtube.py
+### 2. Data Ingestion (Dynamic & Continual Learning Ready)
+Ekstraksi data dinamis dijalankan menggunakan modul terpadu `src/ingest_data.py`. Modul ini mendukung penarikan dari **YouTube Shorts** dan **TikTok FYP**, serta menyediakan mekanisme simulasi periodik non-destruktif (*append-only timestamped snapshots*) untuk mendukung konsep **Continual Learning**.
 
-# Ingest TikTok (public FYP feed and trending streams)
-python src/data/ingest_tiktok.py
+```bash
+# 1. Jalankan penarikan tunggal untuk seluruh platform (YouTube Shorts & TikTok)
+python src/ingest_data.py --source all
+
+# 2. Jalankan penarikan untuk satu platform spesifik
+python src/ingest_data.py --source youtube
+python src/ingest_data.py --source tiktok
+
+# 3. Simulasi penarikan periodik (Continual Learning: misal 3 siklus dengan jeda 5 detik)
+# Setiap siklus menghasilkan file snapshot JSON baru ber-timestamp tanpa menimpa data lama
+python src/ingest_data.py --source all --runs 3 --interval 5
 ```
 
-### 3. Data Cleaning & Sanitization
-Deduplicate records, filter out content exceeding 60 seconds, and handle missing values:
+**Struktur Snapshot Raw Data:**
+* `data/raw/youtube/{YYYY-MM-DD}/youtube_trending_{HHMMSS}.json`
+* `data/raw/tiktok/{YYYY-MM-DD}/tiktok_trending_{HHMMSS}.json`
+* `data/raw/sample_raw_videos.csv` (ringkasan sampel mentah berformat CSV)
+
+### 3. Automated Preprocessing & NLP Cleaning
+Prapemrosesan data mentah dijalankan secara otomatis menggunakan `src/preprocess.py` untuk membersihkan data mentah sebelum masuk ke tahap rekayasa fitur:
+
 ```bash
-python src/data/clean.py
+python src/preprocess.py
 ```
+
+**Tahapan Preprocessing:**
+1. **Aggregasi Snapshot**: Membaca seluruh file snapshot mentah dari `data/raw/`.
+2. **Missing Value Imputation**: Mengisi nilai hilang numerik (`views`, `likes`, `comments`, `shares`) dengan `0` dan merapikan spasi teks.
+3. **Deduplikasi Cerdas**: Menghapus duplikat berdasarkan composite key `(platform, video_id)` dengan mempertahankan snapshot interaksi terbaru.
+4. **Validasi Durasi Short-form**: Memastikan video berdurasi $\le 60$ detik.
+5. **Normalisasi & Ekstraksi Tagar**: Membersihkan URL, mention `@user`, dan mengekstrak tagar ke kolom `extracted_hashtags`.
+6. **Tokenisasi (Tokenization)**: Memecah kalimat menjadi daftar token kata ke kolom `tokens`.
+7. **Pembersihan Kata Henti (Stopword Removal)**: Menghilangkan stopwords bahasa Indonesia dan bahasa Inggris secara in-memory tanpa ketergantungan download eksternal, disimpan ke kolom `clean_tokens` dan `clean_text_final`.
+8. **Output Ganda**: Hasil bersih disimpan ke format `data/processed/clean_videos.parquet` (pipeline ML) dan `data/processed/clean_videos.csv` (inspeksi human-readable).
 
 ### 4. Feature Engineering
 Compute velocity metrics (views/hour, likes/hour), engagement ratios, content signals, and virality ground-truth labels:
