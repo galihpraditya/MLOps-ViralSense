@@ -274,7 +274,9 @@ def preprocess_data(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
             df[col] = pd.to_datetime(df[col], errors="coerce", utc=True)
 
     # 5. Gabungkan judul dan deskripsi untuk representasi konten teks lengkap
-    df["full_content_text"] = df["title"] + " " + df["description"]
+    title_series = df["title"].astype(str) if "title" in df.columns else pd.Series([""] * len(df), index=df.index)
+    desc_series = df["description"].astype(str) if "description" in df.columns else pd.Series([""] * len(df), index=df.index)
+    df["full_content_text"] = (title_series + " " + desc_series).str.strip()
 
     # 6. Ekstraksi Tagar / Hashtags
     df["extracted_hashtags"] = df["full_content_text"].apply(extract_hashtags_from_text)

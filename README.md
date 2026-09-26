@@ -125,6 +125,12 @@ Compute velocity metrics (views/hour, likes/hour), engagement ratios, content si
 python src/features/build_features.py
 ```
 
+### 5. Automated Pipeline Unit Testing
+Jalankan test suite pengujian otomatis untuk memvalidasi skema data, ketahanan missing values, filter durasi, tokenisasi, dan stopword removal:
+```bash
+python -m unittest tests/test_data_pipeline.py
+```
+
 ---
 
 ## Data Versioning Strategy (DVC)
