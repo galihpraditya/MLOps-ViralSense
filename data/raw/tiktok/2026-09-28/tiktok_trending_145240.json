@@ -1,0 +1,86 @@
+[
+  {
+    "platform": "tiktok",
+    "video_id": "tt_viral_sample_1",
+    "channel_id": "kuliner_hits",
+    "channel_name": "@kuliner_hits",
+    "title": "Ide konten dan racun produk viral trending #1",
+    "description": "Rekomendasi tren produk terlaris di TikTok minggu ini",
+    "published_at": "2026-09-28T14:52:40.055512Z",
+    "duration_seconds": 25,
+    "view_count": 350000,
+    "like_count": 28000,
+    "comment_count": 950,
+    "share_count": 420,
+    "tags": [
+      "fyp",
+      "viral",
+      "racuntiktok"
+    ],
+    "ingested_at": "2026-09-28T14:52:40.055512Z",
+    "data_source_type": "TIKTOK_SYNTHETIC_FALLBACK"
+  },
+  {
+    "platform": "tiktok",
+    "video_id": "tt_viral_sample_2",
+    "channel_id": "ide_bisnis_muda",
+    "channel_name": "@ide_bisnis_muda",
+    "title": "Ide konten dan racun produk viral trending #2",
+    "description": "Rekomendasi tren produk terlaris di TikTok minggu ini",
+    "published_at": "2026-09-28T14:52:40.055512Z",
+    "duration_seconds": 30,
+    "view_count": 700000,
+    "like_count": 56000,
+    "comment_count": 1900,
+    "share_count": 840,
+    "tags": [
+      "fyp",
+      "viral",
+      "racuntiktok"
+    ],
+    "ingested_at": "2026-09-28T14:52:40.055512Z",
+    "data_source_type": "TIKTOK_SYNTHETIC_FALLBACK"
+  },
+  {
+    "platform": "tiktok",
+    "video_id": "tt_viral_sample_3",
+    "channel_id": "racun_outfit_indo",
+    "channel_name": "@racun_outfit_indo",
+    "title": "Ide konten dan racun produk viral trending #3",
+    "description": "Rekomendasi tren produk terlaris di TikTok minggu ini",
+    "published_at": "2026-09-28T14:52:40.055512Z",
+    "duration_seconds": 35,
+    "view_count": 1050000,
+    "like_count": 84000,
+    "comment_count": 2850,
+    "share_count": 1260,
+    "tags": [
+      "fyp",
+      "viral",
+      "racuntiktok"
+    ],
+    "ingested_at": "2026-09-28T14:52:40.055512Z",
+    "data_source_type": "TIKTOK_SYNTHETIC_FALLBACK"
+  },
+  {
+    "platform": "tiktok",
+    "video_id": "tt_viral_sample_4",
+    "channel_id": "daily_hacks_id",
+    "channel_name": "@daily_hacks_id",
+    "title": "Ide konten dan racun produk viral trending #4",
+    "description": "Rekomendasi tren produk terlaris di TikTok minggu ini",
+    "published_at": "2026-09-28T14:52:40.055512Z",
+    "duration_seconds": 40,
+    "view_count": 1400000,
+    "like_count": 112000,
+    "comment_count": 3800,
+    "share_count": 1680,
+    "tags": [
+      "fyp",
+      "viral",
+      "racuntiktok"
+    ],
+    "ingested_at": "2026-09-28T14:52:40.055512Z",
+    "data_source_type": "TIKTOK_SYNTHETIC_FALLBACK"
+  }
+]
