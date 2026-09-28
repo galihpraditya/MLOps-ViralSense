@@ -101,7 +101,12 @@ if __name__ == "__main__":
 
     raw_df = load_raw_snapshots(raw_dir=raw_directory)
     if not raw_df.empty:
-        cleaned_df = clean_raw_data(raw_df, config)
+        # Gunakan modul preprocess untuk pipeline pembersihan dan tokenisasi NLP lengkap
+        try:
+            from src.preprocess import preprocess_data
+            cleaned_df = preprocess_data(raw_df, config)
+        except Exception:
+            cleaned_df = clean_raw_data(raw_df, config)
         save_clean_data(cleaned_df, clean_target_path)
     else:
         logger.info("Jalankan modul ingestion terlebih dahulu untuk membuat data mentah.")

@@ -54,7 +54,9 @@ This repository adheres to the **Cookiecutter Data Science** standard:
 ├── notebooks/             # Exploratory Data Analysis (EDA) and prototype notebooks
 ├── src/                   # Production-grade source code
 │   ├── __init__.py
-│   ├── data/              # Data ingestion and validation modules
+│   ├── ingest_data.py     # Unified dynamic data ingestion & periodic simulation script
+│   ├── preprocess.py      # Automated preprocessing (tokenization, stopwords, missing values)
+│   ├── data/              # Modular data extraction and validation modules
 │   │   ├── clean.py       # Data cleaning, deduplication, and schema validation
 │   │   ├── ingest_tiktok.py  # TikTok live FYP and trending ingestion
 │   │   └── ingest_youtube.py # YouTube Data API v3 and trending ingestion
@@ -79,26 +81,54 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-### 2. Data Ingestion (Raw Extraction)
-Execute scheduled extractors for YouTube Shorts and TikTok:
-```bash
-# Ingest YouTube Shorts (trending charts and broad query search)
-python src/data/ingest_youtube.py
+### 2. Data Ingestion (Dynamic & Continual Learning Ready)
+Dynamic data extraction is orchestrated using `src/ingest_data.py`. This module pulls short-form content from **YouTube Shorts** and **TikTok FYP**, providing a non-destructive periodic simulation mechanism (*append-only timestamped snapshots*) to support **Continual Learning**.
 
-# Ingest TikTok (public FYP feed and trending streams)
-python src/data/ingest_tiktok.py
+```bash
+# 1. Execute a single ingestion run across all platforms (YouTube Shorts & TikTok)
+python src/ingest_data.py --source all
+
+# 2. Execute ingestion for a specific platform
+python src/ingest_data.py --source youtube
+python src/ingest_data.py --source tiktok
+
+# 3. Periodic simulation (Continual Learning: e.g., 3 cycles with a 5-second interval)
+# Each cycle generates a distinct timestamped JSON snapshot without overwriting historical batches
+python src/ingest_data.py --source all --runs 3 --interval 5
 ```
 
-### 3. Data Cleaning & Sanitization
-Deduplicate records, filter out content exceeding 60 seconds, and handle missing values:
+**Raw Snapshot Storage Layout:**
+* `data/raw/youtube/{YYYY-MM-DD}/youtube_trending_{HHMMSS}.json`
+* `data/raw/tiktok/{YYYY-MM-DD}/tiktok_trending_{HHMMSS}.json`
+* `data/raw/sample_raw_videos.csv` (consolidated sample snapshot in tabular CSV format)
+
+### 3. Automated Preprocessing & NLP Cleaning
+Raw data preprocessing is automated via `src/preprocess.py` to cleanse and prepare snapshots prior to feature extraction:
+
 ```bash
-python src/data/clean.py
+python src/preprocess.py
 ```
+
+**Preprocessing Workflow:**
+1. **Snapshot Aggregation**: Recursively ingests all historical snapshot batches from `data/raw/`.
+2. **Missing Value Imputation**: Imputes numeric interaction metrics (`views`, `likes`, `comments`, `shares`) with `0` and trims whitespace on textual features.
+3. **Composite Deduplication**: Eliminates duplicate entries based on `(platform, video_id)`, retaining the latest interaction snapshot.
+4. **Short-Form Content Validation**: Filters and retains video content with duration $\le 60$ seconds.
+5. **Text Sanitization & Hashtag Extraction**: Strips URLs, removes `@user` mentions, and parses hashtags into `extracted_hashtags`.
+6. **Tokenization**: Splits clean sentences into word tokens populated in the `tokens` column.
+7. **Stopword Removal**: Eliminates common Indonesian and English stopwords in-memory without external download dependencies, populating `clean_tokens` and `clean_text_final`.
+8. **Dual-Format Export**: Persists clean data to `data/processed/clean_videos.parquet` (optimized for ML training) and `data/processed/clean_videos.csv` (human-readable inspection).
 
 ### 4. Feature Engineering
 Compute velocity metrics (views/hour, likes/hour), engagement ratios, content signals, and virality ground-truth labels:
 ```bash
 python src/features/build_features.py
+```
+
+### 5. Automated Pipeline Unit Testing
+Execute the test suite to validate data schemas, missing value resilience, duration filtering, tokenization, and stopword removal:
+```bash
+python -m unittest tests/test_data_pipeline.py
 ```
 
 ---

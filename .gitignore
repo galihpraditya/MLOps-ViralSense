@@ -217,14 +217,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# MLOps Data Storage (tracked via DVC / snapshots, ignore raw JSON & processed Parquet)
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-data/external/*
-!data/external/.gitkeep
-*.parquet
+# MLOps Data Storage (Sample raw files and processed data tracked for experiment reproducibility)
+# Production datasets (>100MB) can be offloaded to DVC remote storage
+!data/raw/**
+!data/processed/**
+!data/external/**
 
 # MLflow tracking
 mlruns/
