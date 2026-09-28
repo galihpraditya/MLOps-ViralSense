@@ -82,42 +82,42 @@ pip install -r requirements.txt
 ```
 
 ### 2. Data Ingestion (Dynamic & Continual Learning Ready)
-Ekstraksi data dinamis dijalankan menggunakan modul terpadu `src/ingest_data.py`. Modul ini mendukung penarikan dari **YouTube Shorts** dan **TikTok FYP**, serta menyediakan mekanisme simulasi periodik non-destruktif (*append-only timestamped snapshots*) untuk mendukung konsep **Continual Learning**.
+Dynamic data extraction is orchestrated using `src/ingest_data.py`. This module pulls short-form content from **YouTube Shorts** and **TikTok FYP**, providing a non-destructive periodic simulation mechanism (*append-only timestamped snapshots*) to support **Continual Learning**.
 
 ```bash
-# 1. Jalankan penarikan tunggal untuk seluruh platform (YouTube Shorts & TikTok)
+# 1. Execute a single ingestion run across all platforms (YouTube Shorts & TikTok)
 python src/ingest_data.py --source all
 
-# 2. Jalankan penarikan untuk satu platform spesifik
+# 2. Execute ingestion for a specific platform
 python src/ingest_data.py --source youtube
 python src/ingest_data.py --source tiktok
 
-# 3. Simulasi penarikan periodik (Continual Learning: misal 3 siklus dengan jeda 5 detik)
-# Setiap siklus menghasilkan file snapshot JSON baru ber-timestamp tanpa menimpa data lama
+# 3. Periodic simulation (Continual Learning: e.g., 3 cycles with a 5-second interval)
+# Each cycle generates a distinct timestamped JSON snapshot without overwriting historical batches
 python src/ingest_data.py --source all --runs 3 --interval 5
 ```
 
-**Struktur Snapshot Raw Data:**
+**Raw Snapshot Storage Layout:**
 * `data/raw/youtube/{YYYY-MM-DD}/youtube_trending_{HHMMSS}.json`
 * `data/raw/tiktok/{YYYY-MM-DD}/tiktok_trending_{HHMMSS}.json`
-* `data/raw/sample_raw_videos.csv` (ringkasan sampel mentah berformat CSV)
+* `data/raw/sample_raw_videos.csv` (consolidated sample snapshot in tabular CSV format)
 
 ### 3. Automated Preprocessing & NLP Cleaning
-Prapemrosesan data mentah dijalankan secara otomatis menggunakan `src/preprocess.py` untuk membersihkan data mentah sebelum masuk ke tahap rekayasa fitur:
+Raw data preprocessing is automated via `src/preprocess.py` to cleanse and prepare snapshots prior to feature extraction:
 
 ```bash
 python src/preprocess.py
 ```
 
-**Tahapan Preprocessing:**
-1. **Aggregasi Snapshot**: Membaca seluruh file snapshot mentah dari `data/raw/`.
-2. **Missing Value Imputation**: Mengisi nilai hilang numerik (`views`, `likes`, `comments`, `shares`) dengan `0` dan merapikan spasi teks.
-3. **Deduplikasi Cerdas**: Menghapus duplikat berdasarkan composite key `(platform, video_id)` dengan mempertahankan snapshot interaksi terbaru.
-4. **Validasi Durasi Short-form**: Memastikan video berdurasi $\le 60$ detik.
-5. **Normalisasi & Ekstraksi Tagar**: Membersihkan URL, mention `@user`, dan mengekstrak tagar ke kolom `extracted_hashtags`.
-6. **Tokenisasi (Tokenization)**: Memecah kalimat menjadi daftar token kata ke kolom `tokens`.
-7. **Pembersihan Kata Henti (Stopword Removal)**: Menghilangkan stopwords bahasa Indonesia dan bahasa Inggris secara in-memory tanpa ketergantungan download eksternal, disimpan ke kolom `clean_tokens` dan `clean_text_final`.
-8. **Output Ganda**: Hasil bersih disimpan ke format `data/processed/clean_videos.parquet` (pipeline ML) dan `data/processed/clean_videos.csv` (inspeksi human-readable).
+**Preprocessing Workflow:**
+1. **Snapshot Aggregation**: Recursively ingests all historical snapshot batches from `data/raw/`.
+2. **Missing Value Imputation**: Imputes numeric interaction metrics (`views`, `likes`, `comments`, `shares`) with `0` and trims whitespace on textual features.
+3. **Composite Deduplication**: Eliminates duplicate entries based on `(platform, video_id)`, retaining the latest interaction snapshot.
+4. **Short-Form Content Validation**: Filters and retains video content with duration $\le 60$ seconds.
+5. **Text Sanitization & Hashtag Extraction**: Strips URLs, removes `@user` mentions, and parses hashtags into `extracted_hashtags`.
+6. **Tokenization**: Splits clean sentences into word tokens populated in the `tokens` column.
+7. **Stopword Removal**: Eliminates common Indonesian and English stopwords in-memory without external download dependencies, populating `clean_tokens` and `clean_text_final`.
+8. **Dual-Format Export**: Persists clean data to `data/processed/clean_videos.parquet` (optimized for ML training) and `data/processed/clean_videos.csv` (human-readable inspection).
 
 ### 4. Feature Engineering
 Compute velocity metrics (views/hour, likes/hour), engagement ratios, content signals, and virality ground-truth labels:
@@ -126,7 +126,7 @@ python src/features/build_features.py
 ```
 
 ### 5. Automated Pipeline Unit Testing
-Jalankan test suite pengujian otomatis untuk memvalidasi skema data, ketahanan missing values, filter durasi, tokenisasi, dan stopword removal:
+Execute the test suite to validate data schemas, missing value resilience, duration filtering, tokenization, and stopword removal:
 ```bash
 python -m unittest tests/test_data_pipeline.py
 ```
