@@ -5,7 +5,7 @@
 [![Codespaces](https://img.shields.io/badge/GitHub-Codespaces-brightgreen)](https://github.com/features/codespaces)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-ViralSense is an end-to-end MLOps pipeline featuring continual learning capabilities, engineered to forecast early virality scores for short-form video content (YouTube Shorts & TikTok) and identify trend lifecycle stages (early-rise, peak, and saturated). The system addresses real-world constraints such as label latency, concept drift, and API quota limits through an automated, staged machine learning workflow.
+ViralSense is an end-to-end MLOps pipeline featuring continual learning capabilities, engineered to forecast early virality scores for short-form video content (YouTube Shorts) and identify trend lifecycle stages (early-rise, peak, and saturated). The system addresses real-world constraints such as label latency, concept drift, and API quota limits through an automated, staged machine learning workflow.
 
 ---
 
@@ -26,7 +26,7 @@ Data is ingested periodically via an automated ETL pipeline, cleaned, feature-en
 
 ```mermaid
 flowchart LR
-    A["Dynamic Ingestion Sources<br/>(YouTube Shorts / TikTok FYP)"] -->|Extract| B["data/raw/<br/>(JSON Snapshots)"]
+    A["Dynamic Ingestion Sources<br/>(YouTube Shorts API & yt-dlp)"] -->|Extract| B["data/raw/<br/>(JSON Snapshots)"]
     B -->|Transform: Clean| C["data/processed/<br/>(clean_videos.parquet)"]
     C -->|Transform: Features| D["data/processed/<br/>(features_matrix.parquet)"]
     D -->|Version Control| E["DVC + Git Tagging<br/>(data-v1.0.0)"]
@@ -44,10 +44,9 @@ This repository adheres to the **Cookiecutter Data Science** standard:
 ├── .devcontainer/         # GitHub Codespaces container setup and reproducibility config
 ├── config/                # Pipeline parameter files (config.yaml)
 ├── data/
-│   ├── external/          # Auxiliary trend signals (Google Trends, TikTok trends)
+│   ├── external/          # Auxiliary trend signals (Google Trends)
 │   ├── processed/         # Cleaned, feature-engineered datasets (Parquet)
 │   └── raw/               # Raw batch snapshots extracted from APIs and feeds
-│       ├── tiktok/        # TikTok public FYP snapshots
 │       └── youtube/       # YouTube Shorts snapshots
 ├── docs/                  # Technical design and architecture documentation
 ├── models/                # Serialized model artifacts and experiment weights
@@ -58,7 +57,6 @@ This repository adheres to the **Cookiecutter Data Science** standard:
 │   ├── preprocess.py      # Automated preprocessing (tokenization, stopwords, missing values)
 │   ├── data/              # Modular data extraction and validation modules
 │   │   ├── clean.py       # Data cleaning, deduplication, and schema validation
-│   │   ├── ingest_tiktok.py  # TikTok live FYP and trending ingestion
 │   │   └── ingest_youtube.py # YouTube Data API v3 and trending ingestion
 │   ├── features/          # Tabular metric computation and text vectorization
 │   │   └── build_features.py # Velocity, engagement rates, and label generation
@@ -82,24 +80,19 @@ pip install -r requirements.txt
 ```
 
 ### 2. Data Ingestion (Dynamic & Continual Learning Ready)
-Dynamic data extraction is orchestrated using `src/ingest_data.py`. This module pulls short-form content from **YouTube Shorts** and **TikTok FYP**, providing a non-destructive periodic simulation mechanism (*append-only timestamped snapshots*) to support **Continual Learning**.
+Dynamic data extraction is orchestrated using `src/ingest_data.py`. This module pulls short-form content from **YouTube Shorts**, providing a non-destructive periodic simulation mechanism (*append-only timestamped snapshots*) to support **Continual Learning**.
 
 ```bash
-# 1. Execute a single ingestion run across all platforms (YouTube Shorts & TikTok)
-python src/ingest_data.py --source all
-
-# 2. Execute ingestion for a specific platform
+# 1. Execute a single ingestion run for YouTube Shorts
 python src/ingest_data.py --source youtube
-python src/ingest_data.py --source tiktok
 
-# 3. Periodic simulation (Continual Learning: e.g., 3 cycles with a 5-second interval)
+# 2. Periodic simulation (Continual Learning: e.g., 3 cycles with a 5-second interval)
 # Each cycle generates a distinct timestamped JSON snapshot without overwriting historical batches
-python src/ingest_data.py --source all --runs 3 --interval 5
+python src/ingest_data.py --source youtube --runs 3 --interval 5
 ```
 
 **Raw Snapshot Storage Layout:**
 * `data/raw/youtube/{YYYY-MM-DD}/youtube_trending_{HHMMSS}.json`
-* `data/raw/tiktok/{YYYY-MM-DD}/tiktok_trending_{HHMMSS}.json`
 * `data/raw/sample_raw_videos.csv` (consolidated sample snapshot in tabular CSV format)
 
 ### 3. Automated Preprocessing & NLP Cleaning
@@ -133,18 +126,99 @@ python -m unittest tests/test_data_pipeline.py
 
 ---
 
-## Data Versioning Strategy (DVC)
+## Data Versioning Strategy (DVC) & Continual Learning
 
-Dataset releases follow semantic versioning (`v1.0.0`, `v1.1.0`) and are tracked using Data Version Control (DVC) to keep the Git repository lightweight:
+ViralSense implements **Data Version Control (DVC)** coupled with **Git Tagging** to track evolving dataset snapshots without bloating the Git repository with large binary files. This enables dataset reproducibility, continuous data auditing, and zero-downtime rollback across machine learning experiment cycles.
+
+```mermaid
+flowchart LR
+    subgraph Git_Repository["Git Repository (Code & Metadata)"]
+        GitTag1["Tag: data-v1.0<br/>sample_raw_videos.csv.dvc (MD5: ea344f...)"]
+        GitTag2["Tag: data-v2.0<br/>sample_raw_videos.csv.dvc (MD5: e68680...)"]
+    end
+    subgraph DVC_Storage["DVC Remote (Cloudflare R2 / S3-Compatible)"]
+        R2Obj1["s3://viralsense-data/dvc-storage/files/md5/ea/344f... (v1.0)"]
+        R2Obj2["s3://viralsense-data/dvc-storage/files/md5/e6/8680... (v2.0)"]
+    end
+    GitTag1 -. Points to .- R2Obj1
+    GitTag2 -. Points to .- R2Obj2
+```
+
+### 1. Inisialisasi & Pelacakan Dataset Awal (Baseline v1.0)
+1. **Inisialisasi DVC**:
+   ```bash
+   dvc init
+   git commit -m "chore: initialize DVC"
+   ```
+2. **Pelacakan Dataset Awal (LK-04 Baseline)**:
+   ```bash
+   # Lacak dataset mentah (30 video awal)
+   dvc add data/raw/sample_raw_videos.csv
+
+   # Commit file pointer metadata (.dvc) dan .gitignore ke Git
+   git add data/raw/sample_raw_videos.csv.dvc data/raw/.gitignore
+   git commit -m "feat(data): track initial baseline dataset v1.0 via DVC"
+   git tag -a "data-v1.0" -m "Initial raw dataset baseline (LK-04)"
+   ```
+
+### 2. Simulasi Continual Learning & Versioning Dataset Baru (v2.0)
+1. **Simulasi Ingesti Data Tambahan**:
+   Jalankan kembali skrip ingesti untuk menarik konten dinamis terbaru:
+   ```bash
+   python src/ingest_data.py --source youtube
+   ```
+   Dataset `data/raw/sample_raw_videos.csv` bertambah dari 31 baris menjadi 268+ baris data.
+
+2. **Deteksi Perubahan dengan DVC**:
+   ```bash
+   dvc status
+   # Output: data/raw/sample_raw_videos.csv.dvc: modified: data/raw/sample_raw_videos.csv
+   ```
+
+3. **Pelacakan Versi Baru**:
+   ```bash
+   # Update tracking ke versi terbaru
+   dvc add data/raw/sample_raw_videos.csv
+
+   # Commit file pointer baru ke Git dan beri tag rilis v2.0
+   git add data/raw/sample_raw_videos.csv.dvc
+   git commit -m "feat(data): track updated dataset v2.0 after continual learning ingestion"
+   git tag -a "data-v2.0" -m "Updated raw dataset with continual learning additions"
+   ```
+
+### 3. Audit, Diffing, dan Rollback Antar-Versi
+* **Membandingkan Versi Data (Diff Metadata)**:
+  ```bash
+  dvc diff data-v1.0 data-v2.0
+  # Output: Modified: data/raw/sample_raw_videos.csv (1 modified)
+
+  git diff data-v1.0 data-v2.0 data/raw/sample_raw_videos.csv.dvc
+  # Menampilkan perubahan hash MD5 (ea344f1... -> e686805...) dan file size (10.5KB -> 50.7KB)
+  ```
+
+* **Rollback / Switch Versi Dataset**:
+  Untuk mengembalikan kondisi dataset ke versi 1.0 kapan pun diperlukan:
+  ```bash
+  git checkout data-v1.0 data/raw/sample_raw_videos.csv.dvc
+  dvc checkout
+  # Dataset otomatis berganti kembali ke versi 30 baris awal
+  ```
+
+### 4. Konfigurasi Remote Storage (Cloudflare R2 / S3-Compatible)
+Dataset biner disinkronkan ke **Cloudflare R2** menggunakan protokol S3-compatible:
 
 ```bash
-# Track raw snapshots and processed datasets with DVC
-dvc add data/raw data/processed
+# 1. Daftarkan remote Cloudflare R2 sebagai default remote
+dvc remote add -d r2-storage s3://<BUCKET_NAME>/dvc-storage
+dvc remote modify r2-storage endpointurl https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 
-# Track DVC pointer files in Git
-git add data/raw.dvc data/processed.dvc .gitignore
-git commit -m "feat(data): track snapshot dataset v1.0.0"
-git tag -a "data-v1.0.0" -m "Snapshot dataset release v1.0.0"
+# 2. Atur kredensial akses lokal (.dvc/config.local tidak di-commit ke Git demi keamanan)
+dvc remote modify --local r2-storage access_key_id <R2_ACCESS_KEY_ID>
+dvc remote modify --local r2-storage secret_access_key <R2_SECRET_ACCESS_KEY>
+
+# 3. Sinkronisasi data ke cloud storage
+dvc push
+dvc pull
 ```
 
 ---
