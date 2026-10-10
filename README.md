@@ -128,17 +128,36 @@ python -m unittest tests/test_data_pipeline.py
 
 ## Data Versioning Strategy (DVC) & Continual Learning
 
-ViralSense implements **Data Version Control (DVC)** coupled with **Git Tagging** to track evolving dataset snapshots without bloating the Git repository with large binary files. This enables dataset reproducibility, continuous data auditing, and zero-downtime rollback across machine learning experiment cycles.
+ViralSense mengimplementasikan **Data Version Control (DVC)** yang dipadukan dengan **Git Tagging** dan **Cloudflare R2 Object Storage** untuk melacak evolusi dataset biner secara efisien tanpa membebani ukuran repositori Git.
+
+### Mengapa Versioning Data Krusial untuk Reproduksibilitas Model?
+
+Dalam pengembangan Machine Learning dan MLOps, mereproduksi hasil model tidak cukup hanya dengan mengunci kode (*code versioning* via Git). Versioning data memegang peranan krusial karena:
+
+1. **Determinisme Pelatihan Model (*Deterministic Model Training*)**:
+   Jika model dilatih ulang pada kode yang sama persis namun dataset berubah secara dinamis tanpa dilacak (*silent data drift*), performa model, bobot (*weights*), dan metrik evaluasi tidak akan pernah bisa direproduksi. DVC mengunci hash kriptografis (*MD5*) dari setiap batch data, menjamin bahwa pelatihan ulang di masa mendatang akan menghasilkan model yang identik 100%.
+
+2. **Mitigasi *Data Drift* dan *Concept Drift* pada *Continual Learning***:
+   Tren konten video pendek (YouTube Shorts) bergerak sangat cepat (siklus hidup hanya beberapa hari). Dengan merekam setiap rilis dataset (`data-v1.0` ke `data-v2.0`), tim MLOps dapat membandingkan distribusi fitur, mendeteksi *covariate shift*, dan mengevaluasi apakah penurunan akurasi disebabkan oleh perubahan pola tren penonton atau degradasi algoritma model.
+
+3. **Silsilah Data dan Audit Eksperimen (*Data Lineage & Traceability*)**:
+   DVC memungkinkan setiap artefak model di Model Registry (MLflow) dipetakan secara presisi ke *snapshot* data mentah (`data/raw/`) dan data fitur (`data/processed/`) yang digunakan saat pelatihan. Hal ini krusial untuk kebutuhan audit kepatuhan, debugging, dan transparansi keputusan model.
+
+4. **Kemampuan *Zero-Downtime Rollback* Dataset**:
+   Jika model terbaru yang dilatih pada data versi baru (`data-v2.0`) mengalami kegagalan prediksi atau *bias* di lingkungan produksi, tim dapat melakukan *rollback* secara instan ke kondisi data stabil (`data-v1.0`) menggunakan `dvc checkout` hanya dalam hitungan detik.
+
+5. **Pemisahan Kode dan Data Biner (*Decoupled Storage Architecture*)**:
+   Git dirancang untuk file teks baris, bukan file biner/data masif. DVC menyimpan biner data di *object storage* eksternal (**Cloudflare R2**) dan hanya menyimpan file penunjuk (*pointer*) metadata berukuran beberapa byte (`.dvc`) di Git, menjaga performa repositori tetap ringan dan cepat.
 
 ```mermaid
 flowchart LR
     subgraph Git_Repository["Git Repository (Code & Metadata)"]
-        GitTag1["Tag: data-v1.0<br/>sample_raw_videos.csv.dvc (MD5: ea344f...)"]
-        GitTag2["Tag: data-v2.0<br/>sample_raw_videos.csv.dvc (MD5: e68680...)"]
+        GitTag1["Tag: data-v1.0<br/>sample_raw_videos.csv.dvc<br/>(MD5: 44d69d... | 30 vids)"]
+        GitTag2["Tag: data-v2.0<br/>sample_raw_videos.csv.dvc<br/>(MD5: 9dc31b... | 256 vids)"]
     end
-    subgraph DVC_Storage["DVC Remote (Cloudflare R2 / S3-Compatible)"]
-        R2Obj1["s3://viralsense-data/dvc-storage/files/md5/ea/344f... (v1.0)"]
-        R2Obj2["s3://viralsense-data/dvc-storage/files/md5/e6/8680... (v2.0)"]
+    subgraph DVC_Storage["DVC Remote (Cloudflare R2 Object Storage)"]
+        R2Obj1["s3://viralsense/viralsense-dvc/files/md5/44/d69d... (v1.0)"]
+        R2Obj2["s3://viralsense/viralsense-dvc/files/md5/9d/c31b... (v2.0)"]
     end
     GitTag1 -. Points to .- R2Obj1
     GitTag2 -. Points to .- R2Obj2
@@ -150,24 +169,24 @@ flowchart LR
    dvc init
    git commit -m "chore: initialize DVC"
    ```
-2. **Pelacakan Dataset Awal (LK-04 Baseline)**:
+2. **Pelacakan Dataset Awal (Baseline YouTube Shorts)**:
    ```bash
-   # Lacak dataset mentah (30 video awal)
+   # Lacak dataset mentah (30 video YouTube Shorts)
    dvc add data/raw/sample_raw_videos.csv
 
    # Commit file pointer metadata (.dvc) dan .gitignore ke Git
    git add data/raw/sample_raw_videos.csv.dvc data/raw/.gitignore
    git commit -m "feat(data): track initial baseline dataset v1.0 via DVC"
-   git tag -a "data-v1.0" -m "Initial raw dataset baseline (LK-04)"
+   git tag -a "data-v1.0" -m "Initial YouTube Shorts dataset baseline v1.0"
    ```
 
 ### 2. Simulasi Continual Learning & Versioning Dataset Baru (v2.0)
 1. **Simulasi Ingesti Data Tambahan**:
-   Jalankan kembali skrip ingesti untuk menarik konten dinamis terbaru:
+   Jalankan kembali skrip ingesti untuk menarik video YouTube Shorts terbaru secara dinamis:
    ```bash
    python src/ingest_data.py --source youtube
    ```
-   Dataset `data/raw/sample_raw_videos.csv` bertambah dari 31 baris menjadi 268+ baris data.
+   Dataset `data/raw/sample_raw_videos.csv` bertambah dari 31 baris (30 video) menjadi 257 baris (256 video).
 
 2. **Deteksi Perubahan dengan DVC**:
    ```bash
@@ -183,7 +202,7 @@ flowchart LR
    # Commit file pointer baru ke Git dan beri tag rilis v2.0
    git add data/raw/sample_raw_videos.csv.dvc
    git commit -m "feat(data): track updated dataset v2.0 after continual learning ingestion"
-   git tag -a "data-v2.0" -m "Updated raw dataset with continual learning additions"
+   git tag -a "data-v2.0" -m "Updated YouTube Shorts dataset v2.0 after continual learning"
    ```
 
 ### 3. Audit, Diffing, dan Rollback Antar-Versi
@@ -193,7 +212,7 @@ flowchart LR
   # Output: Modified: data/raw/sample_raw_videos.csv (1 modified)
 
   git diff data-v1.0 data-v2.0 data/raw/sample_raw_videos.csv.dvc
-  # Menampilkan perubahan hash MD5 (ea344f1... -> e686805...) dan file size (10.5KB -> 50.7KB)
+  # Menampilkan perubahan hash MD5 (44d69db... -> 9dc31b...) dan file size (8.4 KB -> 47.4 KB)
   ```
 
 * **Rollback / Switch Versi Dataset**:
@@ -201,7 +220,7 @@ flowchart LR
   ```bash
   git checkout data-v1.0 data/raw/sample_raw_videos.csv.dvc
   dvc checkout
-  # Dataset otomatis berganti kembali ke versi 30 baris awal
+  # Dataset otomatis berganti kembali ke versi 30 baris awal (8.4 KB)
   ```
 
 ### 4. Konfigurasi Remote Storage (Cloudflare R2 / S3-Compatible)
@@ -209,10 +228,12 @@ Dataset biner disinkronkan ke **Cloudflare R2** menggunakan protokol S3-compatib
 
 ```bash
 # 1. Daftarkan remote Cloudflare R2 sebagai default remote
-dvc remote add -d r2-storage s3://<BUCKET_NAME>/dvc-storage
+dvc remote add -d r2-storage s3://viralsense/viralsense-dvc
 dvc remote modify r2-storage endpointurl https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 
 # 2. Atur kredensial akses lokal (.dvc/config.local tidak di-commit ke Git demi keamanan)
+dvc remote modify --local r2-storage url s3://viralsense/viralsense-dvc
+dvc remote modify --local r2-storage endpointurl https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 dvc remote modify --local r2-storage access_key_id <R2_ACCESS_KEY_ID>
 dvc remote modify --local r2-storage secret_access_key <R2_SECRET_ACCESS_KEY>
 
