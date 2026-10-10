@@ -9,4 +9,4 @@ uvicorn
 yt-dlp
 pyyaml
 pyarrow
-requests
+dvc-s3
