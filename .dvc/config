@@ -1,0 +1,5 @@
+[core]
+    remote = r2-storage
+['remote "r2-storage"']
+    url = s3://viralsense/viralsense-dvc
+    endpointurl = https://32163d970f3501c30c00af760bf10e9d.r2.cloudflarestorage.com
