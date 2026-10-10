@@ -19,19 +19,6 @@ data_sources:
       - "tips bisnis viral #shorts"
     max_results_per_query: 25
     quota_limit_per_day: 10000
-  
-  tiktok:
-    enabled: true
-    feed_regions:
-      - "ID"
-    batch_limit: 30
-    hashtags:
-      - "fyp"
-      - "viral"
-      - "trending"
-      - "racuntiktok"
-      - "idekonten"
-      - "bisnisviral"
 
 storage:
   raw_dir: "data/raw"

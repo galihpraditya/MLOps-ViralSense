@@ -64,8 +64,8 @@ class TestViralSensePipeline(unittest.TestCase):
         """Memastikan video berdurasi lebih dari 60 detik disaring keluar."""
         cfg = {"cleaning": {"max_video_duration_seconds": 60}}
         df = pd.DataFrame([
-            {"platform": "tiktok", "video_id": "v1", "duration_seconds": 30, "title": "short"},
-            {"platform": "tiktok", "video_id": "v2", "duration_seconds": 120, "title": "long"},
+            {"platform": "youtube", "video_id": "v1", "duration_seconds": 30, "title": "short"},
+            {"platform": "youtube", "video_id": "v2", "duration_seconds": 120, "title": "long"},
         ])
         processed = preprocess_data(df, cfg)
         self.assertEqual(len(processed), 1)
