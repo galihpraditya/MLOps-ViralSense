@@ -39,5 +39,5 @@ features:
   min_engagement_denominator: 1
 
 versioning:
-  dvc_remote: "dagshub-storage"
+  dvc_remote: "r2-storage"
   version_prefix: "data-v"
