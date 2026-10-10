@@ -5,7 +5,7 @@
 [![Codespaces](https://img.shields.io/badge/GitHub-Codespaces-brightgreen)](https://github.com/features/codespaces)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-ViralSense is an end-to-end MLOps pipeline featuring continual learning capabilities, engineered to forecast early virality scores for short-form video content (YouTube Shorts & TikTok) and identify trend lifecycle stages (early-rise, peak, and saturated). The system addresses real-world constraints such as label latency, concept drift, and API quota limits through an automated, staged machine learning workflow.
+ViralSense is an end-to-end MLOps pipeline featuring continual learning capabilities, engineered to forecast early virality scores for short-form video content (YouTube Shorts) and identify trend lifecycle stages (early-rise, peak, and saturated). The system addresses real-world constraints such as label latency, concept drift, and API quota limits through an automated, staged machine learning workflow.
 
 ---
 
@@ -26,7 +26,7 @@ Data is ingested periodically via an automated ETL pipeline, cleaned, feature-en
 
 ```mermaid
 flowchart LR
-    A["Dynamic Ingestion Sources<br/>(YouTube Shorts / TikTok FYP)"] -->|Extract| B["data/raw/<br/>(JSON Snapshots)"]
+    A["Dynamic Ingestion Sources<br/>(YouTube Shorts API & yt-dlp)"] -->|Extract| B["data/raw/<br/>(JSON Snapshots)"]
     B -->|Transform: Clean| C["data/processed/<br/>(clean_videos.parquet)"]
     C -->|Transform: Features| D["data/processed/<br/>(features_matrix.parquet)"]
     D -->|Version Control| E["DVC + Git Tagging<br/>(data-v1.0.0)"]
@@ -44,10 +44,9 @@ This repository adheres to the **Cookiecutter Data Science** standard:
 ├── .devcontainer/         # GitHub Codespaces container setup and reproducibility config
 ├── config/                # Pipeline parameter files (config.yaml)
 ├── data/
-│   ├── external/          # Auxiliary trend signals (Google Trends, TikTok trends)
+│   ├── external/          # Auxiliary trend signals (Google Trends)
 │   ├── processed/         # Cleaned, feature-engineered datasets (Parquet)
 │   └── raw/               # Raw batch snapshots extracted from APIs and feeds
-│       ├── tiktok/        # TikTok public FYP snapshots
 │       └── youtube/       # YouTube Shorts snapshots
 ├── docs/                  # Technical design and architecture documentation
 ├── models/                # Serialized model artifacts and experiment weights
@@ -58,7 +57,6 @@ This repository adheres to the **Cookiecutter Data Science** standard:
 │   ├── preprocess.py      # Automated preprocessing (tokenization, stopwords, missing values)
 │   ├── data/              # Modular data extraction and validation modules
 │   │   ├── clean.py       # Data cleaning, deduplication, and schema validation
-│   │   ├── ingest_tiktok.py  # TikTok live FYP and trending ingestion
 │   │   └── ingest_youtube.py # YouTube Data API v3 and trending ingestion
 │   ├── features/          # Tabular metric computation and text vectorization
 │   │   └── build_features.py # Velocity, engagement rates, and label generation
@@ -82,24 +80,19 @@ pip install -r requirements.txt
 ```
 
 ### 2. Data Ingestion (Dynamic & Continual Learning Ready)
-Dynamic data extraction is orchestrated using `src/ingest_data.py`. This module pulls short-form content from **YouTube Shorts** and **TikTok FYP**, providing a non-destructive periodic simulation mechanism (*append-only timestamped snapshots*) to support **Continual Learning**.
+Dynamic data extraction is orchestrated using `src/ingest_data.py`. This module pulls short-form content from **YouTube Shorts**, providing a non-destructive periodic simulation mechanism (*append-only timestamped snapshots*) to support **Continual Learning**.
 
 ```bash
-# 1. Execute a single ingestion run across all platforms (YouTube Shorts & TikTok)
-python src/ingest_data.py --source all
-
-# 2. Execute ingestion for a specific platform
+# 1. Execute a single ingestion run for YouTube Shorts
 python src/ingest_data.py --source youtube
-python src/ingest_data.py --source tiktok
 
-# 3. Periodic simulation (Continual Learning: e.g., 3 cycles with a 5-second interval)
+# 2. Periodic simulation (Continual Learning: e.g., 3 cycles with a 5-second interval)
 # Each cycle generates a distinct timestamped JSON snapshot without overwriting historical batches
-python src/ingest_data.py --source all --runs 3 --interval 5
+python src/ingest_data.py --source youtube --runs 3 --interval 5
 ```
 
 **Raw Snapshot Storage Layout:**
 * `data/raw/youtube/{YYYY-MM-DD}/youtube_trending_{HHMMSS}.json`
-* `data/raw/tiktok/{YYYY-MM-DD}/tiktok_trending_{HHMMSS}.json`
 * `data/raw/sample_raw_videos.csv` (consolidated sample snapshot in tabular CSV format)
 
 ### 3. Automated Preprocessing & NLP Cleaning
@@ -172,7 +165,7 @@ flowchart LR
 1. **Simulasi Ingesti Data Tambahan**:
    Jalankan kembali skrip ingesti untuk menarik konten dinamis terbaru:
    ```bash
-   python src/ingest_data.py --source all
+   python src/ingest_data.py --source youtube
    ```
    Dataset `data/raw/sample_raw_videos.csv` bertambah dari 31 baris menjadi 268+ baris data.
 

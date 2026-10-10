@@ -1,5 +1,5 @@
 outs:
-- md5: e68680528776700c5cfa1eb75d8f29f5
-  size: 50681
+- md5: 9dc31b571f49e1d65160118eafb0e667
+  size: 47380
   hash: md5
   path: sample_raw_videos.csv

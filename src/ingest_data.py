@@ -1,7 +1,7 @@
 """Skrip Pengumpul Data (Data Ingestion) Otomatis - ViralSense MLOps.
 
-Mengambil data dinamis secara berkala dari sumber yang telah ditentukan (YouTube Shorts dan TikTok FYP)
-menggunakan Requests, YouTube API, dan yt-dlp.
+Mengambil data dinamis secara berkala dari YouTube Shorts
+menggunakan Requests, YouTube API v3, dan yt-dlp fallback.
 Mendukung simulasi periodik dengan penyimpanan snapshot berbasis timestamp (append-only)
 sehingga data lama tidak tertimpa secara destruktif, siap mendukung konsep Continual Learning.
 """
@@ -24,7 +24,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.data.ingest_tiktok import extract_tiktok_videos
 from src.data.ingest_youtube import extract_youtube_shorts
 
 logging.basicConfig(
@@ -98,31 +97,17 @@ def run_ingestion_cycle(
     """Menjalankan satu siklus penarikan data dinamis untuk sumber yang ditentukan."""
     combined_records: List[Dict[str, Any]] = []
 
-    # 1. Ekstraksi YouTube Shorts
-    if source in ("all", "youtube"):
-        logger.info("--> Menarik data dinamis YouTube Shorts...")
-        try:
-            yt_records = extract_youtube_shorts(config=config)
-            if yt_records:
-                save_platform_snapshot(yt_records, "youtube", raw_dir)
-                combined_records.extend(yt_records)
-            else:
-                logger.warning("Tidak ada data YouTube Shorts yang diperoleh.")
-        except Exception as exc:
-            logger.error(f"Gagal saat ekstraksi YouTube Shorts: {exc}", exc_info=True)
-
-    # 2. Ekstraksi TikTok FYP / Trending
-    if source in ("all", "tiktok"):
-        logger.info("--> Menarik data dinamis TikTok FYP...")
-        try:
-            tt_records = extract_tiktok_videos(config=config)
-            if tt_records:
-                save_platform_snapshot(tt_records, "tiktok", raw_dir)
-                combined_records.extend(tt_records)
-            else:
-                logger.warning("Tidak ada data TikTok yang diperoleh.")
-        except Exception as exc:
-            logger.error(f"Gagal saat ekstraksi TikTok FYP: {exc}", exc_info=True)
+    # Ekstraksi YouTube Shorts
+    logger.info("--> Menarik data dinamis YouTube Shorts...")
+    try:
+        yt_records = extract_youtube_shorts(config=config)
+        if yt_records:
+            save_platform_snapshot(yt_records, "youtube", raw_dir)
+            combined_records.extend(yt_records)
+        else:
+            logger.warning("Tidak ada data YouTube Shorts yang diperoleh.")
+    except Exception as exc:
+        logger.error(f"Gagal saat ekstraksi YouTube Shorts: {exc}", exc_info=True)
 
     return combined_records
 
@@ -155,13 +140,13 @@ def print_summary_table(records: List[Dict[str, Any]]) -> None:
 def parse_arguments() -> argparse.Namespace:
     """Parsing argumen baris perintah (CLI)."""
     parser = argparse.ArgumentParser(
-        description="Skrip Penarikan Data (Data Ingestion) Otomatis ViralSense (YouTube Shorts & TikTok)."
+        description="Skrip Penarikan Data (Data Ingestion) Otomatis ViralSense (YouTube Shorts)."
     )
     parser.add_argument(
         "--source",
-        choices=["all", "youtube", "tiktok"],
-        default="all",
-        help="Sumber data dinamis yang akan ditarik (default: all).",
+        choices=["all", "youtube"],
+        default="youtube",
+        help="Sumber data dinamis yang akan ditarik (default: youtube).",
     )
     parser.add_argument(
         "--runs",

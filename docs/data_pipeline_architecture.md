@@ -11,13 +11,11 @@ Accurate trend detection and virality prediction require continuous, dynamic dat
 | Data Source | Ingestion Method | Polling Frequency | Extracted Attributes & Schema |
 | :--- | :--- | :--- | :--- |
 | **YouTube Shorts** | YouTube Data API v3 (Most Popular charts & viral query search) with `yt-dlp` fallback | Scheduled every 4–6 hours based on regional trending charts (ID) and viral search queries (`#shorts`, `#trending`, `#fyp`, etc.) with a 24–48 hour freshness filter. | `video_id`, `channel_id`, `channel_name`, `title`, `description`, `published_at`, `duration_seconds`, `view_count`, `like_count`, `comment_count`, `tags`. |
-| **TikTok Videos** | Public Recommendation Feed (FYP) & Apify hashtag scrapers | Scheduled every 6 hours based on live recommendation streams (FYP) and trending hashtags (`#fyp`, `#viral`, `#trending`, etc.). | `video_id`, `channel_id`, `channel_name`, `title`, `description`, `published_at`, `duration_seconds`, `view_count`, `like_count`, `comment_count`, `share_count`, `tags`. |
 
 ### Data Dynamics and Operational Constraints
 1. **Snapshot-Based Tracking**: Identical videos are re-extracted across successive time intervals ($t_1, t_2, t_3$) to track differential growth rates ($\Delta\text{views}, \Delta\text{likes}, \Delta\text{comments}$).
 2. **API Quota Management & Anti-Blocking Policies**:
    * The YouTube Data API v3 is utilized within the official free tier quota (10,000 units/day), supplemented by `yt-dlp` flat search as a quota-free fallback.
-   * TikTok extraction enforces User-Agent rotation, adaptive request delays, and multi-region proxies to prevent rate-limiting and IP blocks.
 
 ---
 
@@ -33,7 +31,7 @@ flowchart LR
 ```
 
 ### A. Automated Ingestion Mechanism (Extract)
-* **Modules**: [`src/data/ingest_youtube.py`](../src/data/ingest_youtube.py), [`src/data/ingest_tiktok.py`](../src/data/ingest_tiktok.py).
+* **Modules**: [`src/data/ingest_youtube.py`](../src/data/ingest_youtube.py).
 * **Automated Scheduling**: Executed via scheduled GitHub Actions cron jobs (or local cron runners / Apache Airflow).
 * **Append-Only Snapshot Storage**:
   * Every execution writes a new timestamped snapshot without overwriting historical batches.
@@ -84,7 +82,6 @@ The diagram below illustrates how data transitions from external sources into re
 flowchart TD
     subgraph External_Sources["1. External Data Sources (Dynamic Broad Viral Discovery)"]
         YTS["YouTube Shorts<br/>(Most Popular Chart, Freshness Filter, yt-dlp)"]
-        TKT["TikTok Trending<br/>(Live FYP Feed, Multi-Region Scraper)"]
     end
 
     subgraph Automation["2. Orchestration & Scheduling"]
@@ -93,13 +90,12 @@ flowchart TD
 
     subgraph ETL_Execution["3. Modular ETL Processing (src/)"]
         ExtractYT["src/data/ingest_youtube.py<br/>(YouTube Shorts Ingestion)"]
-        ExtractTT["src/data/ingest_tiktok.py<br/>(TikTok FYP Ingestion)"]
         CleanScript["src/data/clean.py<br/>(Deduplication & Sanitization)"]
         FeatureScript["src/features/build_features.py<br/>(Velocity & Feature Matrix)"]
     end
 
     subgraph Repository_Data["4. Data Directory Structure (data/)"]
-        RawDir["data/raw/<br/>├── youtube/YYYY-MM-DD/*.json<br/>└── tiktok/YYYY-MM-DD/*.json"]
+        RawDir["data/raw/<br/>└── youtube/YYYY-MM-DD/*.json"]
         ProcClean["data/processed/clean_videos.parquet"]
         ProcFeatures["data/processed/features_matrix.parquet"]
     end
@@ -107,16 +103,13 @@ flowchart TD
     subgraph Storage_Versioning["5. Data Versioning & Artifact Tracking"]
         DVC_Engine["Data Version Control (DVC)"]
         GitRepo["Git Repository (Tracking *.dvc pointers & .gitignore)"]
-        RemoteStorage["DVC Remote Storage<br/>(DagsHub / S3 / Cloud Storage)"]
+        RemoteStorage["DVC Remote Storage<br/>(Cloudflare R2 / S3-Compatible)"]
     end
 
     CronJob -->|Trigger Execution| ExtractYT
-    CronJob -->|Trigger Execution| ExtractTT
     YTS --> ExtractYT
-    TKT --> ExtractTT
 
     ExtractYT -->|Write Raw JSON| RawDir
-    ExtractTT -->|Write Raw JSON| RawDir
     RawDir -->|Read by| CleanScript
     CleanScript -->|Write Clean Parquet| ProcClean
     ProcClean -->|Read by| FeatureScript
@@ -166,7 +159,7 @@ ViralSense implements semantic dataset versioning coupled with timestamped snaps
 
 3. **Git Tagging (Linking Code and Data Versions)**:
    ```bash
-   git tag -a "data-v1.0.0" -m "Initial dataset snapshot release: Shorts & TikTok"
+   git tag -a "data-v1.0.0" -m "Initial dataset snapshot release: YouTube Shorts"
    ```
 
 4. **Synchronizing Data to Remote Storage**:
