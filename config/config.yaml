@@ -17,6 +17,9 @@ data_sources:
       - "racun shopee viral #shorts"
       - "ide konten viral indonesia #shorts"
       - "tips bisnis viral #shorts"
+      - "podcast viral indonesia #shorts"      
+      - "game viral indonesia #shorts"          
+      - "horor misteri viral #shorts"  
     max_results_per_query: 25
     quota_limit_per_day: 10000
 
