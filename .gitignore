@@ -223,10 +223,21 @@ __marimo__/
 !data/processed/**
 !data/external/**
 
-# MLflow tracking
+# MLflow tracking & SQLite database
 mlruns/
 .trash/
+mlflow.db
+mlflow.db-journal
+*.db
+*.sqlite3
 
 # DVC cache
 .dvc/cache
 .dvc/tmp
+
+# Local binary model artifacts & generated reports
+*.pkl
+*.joblib
+*.pdf
+docs/*.pdf
+

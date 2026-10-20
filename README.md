@@ -119,12 +119,32 @@ python src/features/build_features.py
 ```
 
 ### 5. Automated Pipeline Unit Testing
-Execute the test suite to validate data schemas, missing value resilience, duration filtering, tokenization, and stopword removal:
+Execute the test suite to validate data schemas, missing value resilience, duration filtering, tokenization, stopword removal, and model training:
 ```bash
 python -m unittest tests/test_data_pipeline.py
+python -m unittest tests/test_train.py
 ```
 
+### 6. Machine Learning Training & MLflow Experiment Tracking
+Train virality prediction models, perform hyperparameter tuning across multiple algorithm families, log metrics/artifacts, and register the Champion model into the MLflow Model Registry:
+
+```bash
+# 1. Run full 5-experiment tuning suite & automatically register the Champion model:
+python src/models/train.py --run_all --register_best
+
+# 2. Or execute a single custom run:
+python src/models/train.py --model_type gbm --n_estimators 150 --learning_rate 0.08 --max_depth 4
+
+# 3. Launch the MLflow UI Dashboard:
+mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port 5000
+```
+
+**Experimental Deliverables:**
+* **Champion Model Metadata**: `models/model_metadata.json` & `docs/model_metadata.md`
+* **Model Registry**: `ViralSense-ViralityClassifier` (Champion / Version 1)
+
 ---
+
 
 ## Data Versioning Strategy (DVC) & Continual Learning
 

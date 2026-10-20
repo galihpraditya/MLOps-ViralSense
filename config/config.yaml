@@ -44,3 +44,23 @@ features:
 versioning:
   dvc_remote: "r2-storage"
   version_prefix: "data-v"
+
+mlflow:
+  tracking_uri: "sqlite:///mlflow.db"
+  experiment_name: "viralsense-virality-prediction"
+  artifact_location: "./mlruns"
+  registered_model_name: "ViralSense-ViralityClassifier"
+
+model_training:
+  test_size: 0.2
+  random_state: 42
+  target_column: "is_viral"
+  feature_columns:
+    - "duration_seconds"
+    - "video_age_hours"
+    - "engagement_rate"
+    - "comment_to_like_ratio"
+    - "caption_length"
+    - "word_count"
+    - "has_hook_question"
+

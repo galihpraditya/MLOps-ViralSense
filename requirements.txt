@@ -10,3 +10,5 @@ yt-dlp
 pyyaml
 pyarrow
 dvc-s3
+matplotlib
+
