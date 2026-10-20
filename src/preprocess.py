@@ -146,6 +146,7 @@ def load_config(config_path: str = "config/config.yaml") -> Dict[str, Any]:
 
 def load_all_raw_data(raw_dir: Path) -> pd.DataFrame:
     """Membaca seluruh snapshot data mentah (JSON dan CSV) yang tersimpan di data/raw/."""
+    raw_dir = Path(raw_dir)
     json_files = glob.glob(str(raw_dir / "**" / "*.json"), recursive=True)
     csv_files = [f for f in glob.glob(str(raw_dir / "*.csv")) if "sample" in f or "snapshot" in f]
 
@@ -271,7 +272,7 @@ def preprocess_data(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
     time_columns = ["published_at", "ingested_at"]
     for col in time_columns:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce", utc=True)
+            df[col] = pd.to_datetime(df[col], format="ISO8601", errors="coerce", utc=True)
 
     # 5. Gabungkan judul dan deskripsi untuk representasi konten teks lengkap
     title_series = df["title"].astype(str) if "title" in df.columns else pd.Series([""] * len(df), index=df.index)
