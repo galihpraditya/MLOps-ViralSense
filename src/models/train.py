@@ -731,6 +731,17 @@ def parse_cli_args():
         default=1.0,
         help="Parameter regulasi C (SVM / Logistic Regression)",
     )
+    parser.add_argument(
+        "--subsample",
+        type=float,
+        default=0.85,
+        help="Subsample ratio untuk Gradient Boosting",
+    )
+    parser.add_argument(
+        "--register",
+        action="store_true",
+        help="Daftarkan model dari run ini langsung ke MLflow Model Registry",
+    )
     return parser.parse_args()
 
 
@@ -749,15 +760,39 @@ def main():
             "n_estimators": args.n_estimators,
             "max_depth": args.max_depth,
             "learning_rate": args.learning_rate,
+            "subsample": args.subsample,
             "kernel": args.kernel,
             "C": args.C,
         }
-        train_single_run(
+        res = train_single_run(
             model_type=args.model_type,
             hyperparams=hyperparams,
             run_name=args.run_name,
             config_path=args.config,
         )
+        if args.register:
+            cfg = load_config(args.config)
+            reg_name = cfg.get("mlflow", {}).get("registered_model_name", "ViralSense-ViralityClassifier")
+            run_id = res["run_id"]
+            model_uri = f"runs:/{run_id}/model"
+            logger.info(f"Mendaftarkan model run {run_id} ke Model Registry '{reg_name}'...")
+            reg_result = mlflow.register_model(model_uri=model_uri, name=reg_name)
+            logger.info(
+                f"Model berhasil didaftarkan sebagai versi {reg_result.version} di '{reg_name}'!"
+            )
+            client = mlflow.tracking.MlflowClient()
+            client.set_model_version_tag(
+                name=reg_name,
+                version=reg_result.version,
+                key="model_version_role",
+                value="Candidate Update v2",
+            )
+            client.set_model_version_tag(
+                name=reg_name,
+                version=reg_result.version,
+                key="selection_metric",
+                value=f"F1-Score: {res['metrics']['f1_score']:.4f}, ROC-AUC: {res['metrics']['roc_auc']:.4f}",
+            )
 
 
 if __name__ == "__main__":
