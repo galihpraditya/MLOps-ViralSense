@@ -1,27 +1,24 @@
 {
-  "registered_model_name": "ViralSense-ViralityClassifier",
-  "model_version": "1",
-  "champion_run_id": "63fbe9bd15b8408e8e2b1040d90bd865",
-  "champion_run_name": "run4_gbm_tuned_lr0.05_n200",
-  "model_type": "gradient_boosting",
-  "metrics": {
-    "f1_score": 0.8,
-    "roc_auc": 0.9508196721311476,
-    "accuracy": 0.9558823529411765,
-    "precision": 0.75,
-    "recall": 0.8571428571428571
+  "model_registry": {
+    "name": "ViralSense-ViralityClassifier",
+    "version": 2,
+    "stage": "Production",
+    "status": "READY",
+    "source_run_id": "3a06858ee6dc4f97a42234a952a6b17e",
+    "source_run_name": "run6_gbm_optimized_v2_lr0.04_n220",
+    "artifact_uri": "models:/m-dcec76e7f7e24695ab331774871ee75f",
+    "framework": "scikit-learn",
+    "registered_at": "2026-10-31 11:45:26",
+    "updated_at": "2026-10-31 11:46:30"
   },
-  "hyperparameters": {
-    "n_estimators": "200",
-    "learning_rate": "0.05",
-    "max_depth": "4",
-    "subsample": "0.85",
-    "random_state": "42"
-  },
-  "dataset_lineage": {
-    "dataset_version": "data-v3.0",
+  "data_lineage": {
+    "dataset_tag": "data-v3.0",
+    "dvc_file": "data/raw/sample_raw_videos.csv.dvc",
+    "dvc_data_hash_md5": "4ad531da424ea3e6a966acb6c4a5b648",
+    "raw_dataset_size_bytes": 260446,
+    "features_source": "data/processed/features_matrix.parquet",
     "target_column": "is_viral",
-    "features": [
+    "feature_columns": [
       "duration_seconds",
       "video_age_hours",
       "engagement_rate",
@@ -30,8 +27,38 @@
       "word_count",
       "has_hook_question"
     ],
-    "n_train_samples": "271",
-    "n_test_samples": "68"
+    "n_features": 7,
+    "n_train_samples": 271,
+    "n_test_samples": 68
   },
-  "deployment_status": "Candidate / Champion"
+  "performance_metrics": {
+    "accuracy": 0.9558823529411765,
+    "f1_score": 0.8,
+    "roc_auc": 0.9625292740046838,
+    "precision": 0.75,
+    "recall": 0.8571428571428571,
+    "train_accuracy": 1.0,
+    "train_f1_score": 1.0
+  },
+  "hyperparameters": {
+    "n_estimators": "220",
+    "max_depth": "4",
+    "learning_rate": "0.04",
+    "subsample": "0.85",
+    "kernel": "rbf",
+    "C": "1.0"
+  },
+  "inference_specification": {
+    "pyfunc_model_uri": "models:/ViralSense-ViralityClassifier/Production",
+    "version_model_uri": "models:/ViralSense-ViralityClassifier/2",
+    "prediction_classes": [
+      0,
+      1
+    ],
+    "class_labels": {
+      "0": "Non-Viral",
+      "1": "Viral"
+    },
+    "confidence_threshold": 0.5
+  }
 }

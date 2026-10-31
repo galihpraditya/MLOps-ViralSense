@@ -139,35 +139,104 @@ python src/models/train.py --model_type gbm --n_estimators 150 --learning_rate 0
 mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port 5000
 ```
 
-**Experimental Deliverables:**
-* **Champion Model Metadata**: `models/model_metadata.json` & `docs/model_metadata.md`
-* **Model Registry**: `ViralSense-ViralityClassifier` (Champion / Version 1)
+### 7. Model Registry, Versioning & Production Inference Readiness
+ViralSense orchestrates the full model lifecycle using the **MLflow Model Registry** integrated with **DVC** to enforce rigorous stage transitions and preserve verifiable data lineage from raw snapshots to real-time production inference.
+
+#### Registered Models & Active Production Versions:
+* **Registered Model Name**: `ViralSense-ViralityClassifier`
+* **Active Production Version**: **Version 2 (v2)** — Stage: `Production` (Aliases: `@production`, `@champion`)
+* **Archived Version**: **Version 1 (v1)** — Stage: `Archived` (Alias: `@archived_v1`)
+
+#### Why Version 2 Was Selected for Production:
+Model Version 2 (`run6_gbm_optimized_v2_lr0.04_n220`) was selected and promoted to **Production** replacing Version 1 based on the following technical evaluation:
+1. **Superior Discriminative Capability (ROC-AUC 0.9625 vs. 0.9508)**: Version 2 yields sharper probability separation between genuinely viral and non-viral content, providing greater stability across varying classification decision thresholds.
+2. **Balanced Precision-Recall Profile (F1-Score: 0.8000, Recall: 85.71%)**: In short-form video virality forecasting, false negatives (missing an emerging viral video) incur substantially higher opportunity costs than false positives. Version 2 sustains high recall ($85.71\%$) alongside solid precision ($75.00\%$) and overall test accuracy of $95.59\%$.
+3. **Tuned Regularization Hyperparameters**: Optimizing `n_estimators=220`, `learning_rate=0.04`, `max_depth=4`, and `subsample=0.85` ensures robust regularization, preventing overfitting on lexical signals and interaction ratios.
+
+#### Model Lifecycle Stage Transition Workflow:
+```text
+[Experiment Suite / Run 6] 
+       │ (Register Model)
+       ▼
+ [Stage: None] ──(Validation & Benchmarking)──► [Stage: Staging] ──(Promote Winner)──► [Stage: Production (v2 Active)]
+                                                                                               │
+                                                                             [Stage: Archived (v1 Archived)]
+```
+
+#### Programmatic Production Inference Verification:
+The active Production model can be dynamically loaded and queried via `mlflow.pyfunc.load_model`:
+
+```python
+import mlflow.pyfunc
+import pandas as pd
+
+# 1. Configure MLflow tracking URI
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+
+# 2. Load the active Production model from the registry
+model = mlflow.pyfunc.load_model("models:/ViralSense-ViralityClassifier/Production")
+
+# 3. Formulate inference payload (YouTube Shorts features)
+sample_payload = pd.DataFrame([{
+    "duration_seconds": 15,
+    "video_age_hours": 4.5,
+    "engagement_rate": 0.125,
+    "comment_to_like_ratio": 0.18,
+    "caption_length": 95,
+    "word_count": 14,
+    "has_hook_question": 1
+}])
+
+# 4. Predict binary class (0 = Non-Viral, 1 = Viral)
+prediction = model.predict(sample_payload)
+print(f"Content Prediction: {'VIRAL' if prediction[0] == 1 else 'NON-VIRAL'}")
+```
+
+#### Running the Lifecycle Manager & Inference Verification Tools:
+```bash
+# 1. Inspect all registered model versions and stages:
+python src/models/registry_manager.py --list
+
+# 2. Synchronize active production metadata to YAML and DVC:
+python src/models/registry_manager.py --sync_dvc
+
+# 3. Execute real-time programmatic inference verification (latency < 3 ms):
+python src/models/verify_inference.py
+
+# 4. Run automated inference unit tests:
+python -m unittest tests/test_inference.py
+```
+
+**Key Deliverables & Artifacts:**
+* **Model Lineage Metadata (JSON)**: [`models/model_metadata.json`](models/model_metadata.json)
+* **DVC Lineage Pointer**: [`models/production_model.yaml.dvc`](models/production_model.yaml.dvc) (linked to raw snapshot `sample_raw_videos.csv.dvc` / `data-v3.0`)
+
 
 ---
 
 
 ## Data Versioning Strategy (DVC) & Continual Learning
 
-ViralSense mengimplementasikan **Data Version Control (DVC)** yang dipadukan dengan **Git Tagging** dan **Cloudflare R2 Object Storage** untuk melacak evolusi dataset biner secara efisien tanpa membebani ukuran repositori Git.
+ViralSense implements **Data Version Control (DVC)** coupled with **Git Tagging** and **Cloudflare R2 Object Storage** to track binary dataset evolution without bloating repository size.
 
-### Mengapa Versioning Data Krusial untuk Reproduksibilitas Model?
+### Why Data Versioning is Critical for ML Reproducibility
 
-Dalam pengembangan Machine Learning dan MLOps, mereproduksi hasil model tidak cukup hanya dengan mengunci kode (*code versioning* via Git). Versioning data memegang peranan krusial karena:
+In machine learning and MLOps, code versioning alone via Git is insufficient to reproduce model outputs. Data versioning plays a critical role because:
 
-1. **Determinisme Pelatihan Model (*Deterministic Model Training*)**:
-   Jika model dilatih ulang pada kode yang sama persis namun dataset berubah secara dinamis tanpa dilacak (*silent data drift*), performa model, bobot (*weights*), dan metrik evaluasi tidak akan pernah bisa direproduksi. DVC mengunci hash kriptografis (*MD5*) dari setiap batch data, menjamin bahwa pelatihan ulang di masa mendatang akan menghasilkan model yang identik 100%.
+1. **Deterministic Model Training**:
+   If models are retrained against changing datasets without tracking (*silent data drift*), performance metrics, weights, and evaluation scores cannot be reproduced. DVC locks cryptographic hashes (*MD5*) of each batch, guaranteeing 100% reproducible training in future runs.
 
-2. **Mitigasi *Data Drift* dan *Concept Drift* pada *Continual Learning***:
-   Tren konten video pendek (YouTube Shorts) bergerak sangat cepat (siklus hidup hanya beberapa hari). Dengan merekam setiap rilis dataset (`data-v1.0` ke `data-v2.0`), tim MLOps dapat membandingkan distribusi fitur, mendeteksi *covariate shift*, dan mengevaluasi apakah penurunan akurasi disebabkan oleh perubahan pola tren penonton atau degradasi algoritma model.
+2. **Mitigating Data Drift and Concept Drift in Continual Learning**:
+   Short-form content dynamics shift rapidly (lifecycle decays within days). Tracking dataset releases (`data-v1.0` through `data-v3.0`) enables MLOps teams to monitor feature distribution shifts, detect *covariate shift*, and evaluate whether performance drops originate from audience habit changes or algorithmic degradation.
 
-3. **Silsilah Data dan Audit Eksperimen (*Data Lineage & Traceability*)**:
-   DVC memungkinkan setiap artefak model di Model Registry (MLflow) dipetakan secara presisi ke *snapshot* data mentah (`data/raw/`) dan data fitur (`data/processed/`) yang digunakan saat pelatihan. Hal ini krusial untuk kebutuhan audit kepatuhan, debugging, dan transparansi keputusan model.
+3. **Data Lineage and Auditability**:
+   DVC connects registered models in MLflow to the exact raw snapshots (`data/raw/`) and feature matrices (`data/processed/`) used during training. This is essential for compliance audits, debugging, and model transparency.
 
-4. **Kemampuan *Zero-Downtime Rollback* Dataset**:
-   Jika model terbaru yang dilatih pada data versi baru (`data-v2.0`) mengalami kegagalan prediksi atau *bias* di lingkungan produksi, tim dapat melakukan *rollback* secara instan ke kondisi data stabil (`data-v1.0`) menggunakan `dvc checkout` hanya dalam hitungan detik.
+4. **Zero-Downtime Dataset Rollback**:
+   If a newly retrained model exhibits bias or anomalies in production, teams can instantly revert to a proven dataset state via `git checkout` and `dvc checkout` in seconds.
 
-5. **Pemisahan Kode dan Data Biner (*Decoupled Storage Architecture*)**:
-   Git dirancang untuk file teks baris, bukan file biner/data masif. DVC menyimpan biner data di *object storage* eksternal (**Cloudflare R2**) dan hanya menyimpan file penunjuk (*pointer*) metadata berukuran beberapa byte (`.dvc`) di Git, menjaga performa repositori tetap ringan dan cepat.
+5. **Decoupled Storage Architecture**:
+   Git is built for text files, not massive binary files. DVC offloads heavy binary payloads to external object storage (**Cloudflare R2**) and keeps only lightweight metadata pointer files (`.dvc`) in Git, keeping the repository lightweight and responsive.
 
 ```mermaid
 flowchart LR
@@ -183,81 +252,81 @@ flowchart LR
     GitTag2 -. Points to .- R2Obj2
 ```
 
-### 1. Inisialisasi & Pelacakan Dataset Awal (Baseline v1.0)
-1. **Inisialisasi DVC**:
+### 1. Initial Dataset Baseline Tracking (v1.0)
+1. **Initialize DVC**:
    ```bash
    dvc init
    git commit -m "chore: initialize DVC"
    ```
-2. **Pelacakan Dataset Awal (Baseline YouTube Shorts)**:
+2. **Track Initial Baseline Dataset (YouTube Shorts Baseline)**:
    ```bash
-   # Lacak dataset mentah (30 video YouTube Shorts)
+   # Track raw dataset (30 YouTube Shorts videos)
    dvc add data/raw/sample_raw_videos.csv
 
-   # Commit file pointer metadata (.dvc) dan .gitignore ke Git
+   # Commit metadata pointer (.dvc) and .gitignore to Git
    git add data/raw/sample_raw_videos.csv.dvc data/raw/.gitignore
    git commit -m "feat(data): track initial baseline dataset v1.0 via DVC"
    git tag -a "data-v1.0" -m "Initial YouTube Shorts dataset baseline v1.0"
    ```
 
-### 2. Simulasi Continual Learning & Versioning Dataset Baru (v2.0)
-1. **Simulasi Ingesti Data Tambahan**:
-   Jalankan kembali skrip ingesti untuk menarik video YouTube Shorts terbaru secara dinamis:
+### 2. Continual Learning Simulation & Dataset Versioning (v2.0)
+1. **Simulate Ingestion of Additional Batches**:
+   Trigger the dynamic ingestion script to fetch recent YouTube Shorts:
    ```bash
    python src/ingest_data.py --source youtube
    ```
-   Dataset `data/raw/sample_raw_videos.csv` bertambah dari 31 baris (30 video) menjadi 257 baris (256 video).
+   The consolidated snapshot `data/raw/sample_raw_videos.csv` grows from 31 rows (30 videos) to 257 rows (256 videos).
 
-2. **Deteksi Perubahan dengan DVC**:
+2. **Detect Changes with DVC**:
    ```bash
    dvc status
    # Output: data/raw/sample_raw_videos.csv.dvc: modified: data/raw/sample_raw_videos.csv
    ```
 
-3. **Pelacakan Versi Baru**:
+3. **Track Updated Dataset Version**:
    ```bash
-   # Update tracking ke versi terbaru
+   # Update DVC tracking to the latest snapshot
    dvc add data/raw/sample_raw_videos.csv
 
-   # Commit file pointer baru ke Git dan beri tag rilis v2.0
+   # Commit new pointer to Git and tag as release v2.0
    git add data/raw/sample_raw_videos.csv.dvc
    git commit -m "feat(data): track updated dataset v2.0 after continual learning ingestion"
    git tag -a "data-v2.0" -m "Updated YouTube Shorts dataset v2.0 after continual learning"
    ```
 
-### 3. Audit, Diffing, dan Rollback Antar-Versi
-* **Membandingkan Versi Data (Diff Metadata)**:
+### 3. Auditing, Diffing, and Version Rollbacks
+* **Compare Dataset Versions (Metadata Diff)**:
   ```bash
   dvc diff data-v1.0 data-v2.0
   # Output: Modified: data/raw/sample_raw_videos.csv (1 modified)
 
   git diff data-v1.0 data-v2.0 data/raw/sample_raw_videos.csv.dvc
-  # Menampilkan perubahan hash MD5 (44d69db... -> 9dc31b...) dan file size (8.4 KB -> 47.4 KB)
+  # Shows MD5 hash change (44d69db... -> 9dc31b...) and file size update (8.4 KB -> 47.4 KB)
   ```
 
-* **Rollback / Switch Versi Dataset**:
-  Untuk mengembalikan kondisi dataset ke versi 1.0 kapan pun diperlukan:
+* **Rollback / Switch Dataset Version**:
+  Revert the dataset state to version 1.0 at any point:
   ```bash
   git checkout data-v1.0 data/raw/sample_raw_videos.csv.dvc
   dvc checkout
-  # Dataset otomatis berganti kembali ke versi 30 baris awal (8.4 KB)
+  # The dataset automatically restores to the initial 30-row baseline (8.4 KB)
   ```
 
-### 4. Konfigurasi Remote Storage (Cloudflare R2 / S3-Compatible)
-Dataset biner disinkronkan ke **Cloudflare R2** menggunakan protokol S3-compatible:
+### 4. Remote Storage Configuration (Cloudflare R2 / S3-Compatible)
+Binary datasets are synchronized to **Cloudflare R2** using S3-compatible protocols:
 
 ```bash
-# 1. Daftarkan remote Cloudflare R2 sebagai default remote
+# 1. Register Cloudflare R2 remote as default remote
 dvc remote add -d r2-storage s3://viralsense/viralsense-dvc
 dvc remote modify r2-storage endpointurl https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 
-# 2. Atur kredensial akses lokal (.dvc/config.local tidak di-commit ke Git demi keamanan)
+# 2. Configure local credentials (.dvc/config.local is gitignored for security)
 dvc remote modify --local r2-storage url s3://viralsense/viralsense-dvc
 dvc remote modify --local r2-storage endpointurl https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 dvc remote modify --local r2-storage access_key_id <R2_ACCESS_KEY_ID>
 dvc remote modify --local r2-storage secret_access_key <R2_SECRET_ACCESS_KEY>
 
-# 3. Sinkronisasi data ke cloud storage
+# 3. Synchronize datasets with cloud storage
 dvc push
 dvc pull
 ```
