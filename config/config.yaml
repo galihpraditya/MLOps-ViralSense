@@ -65,8 +65,8 @@ model_training:
     - "word_count"
     - "has_hook_question"
   hyperparameters:
-    n_estimators: 220
-    learning_rate: 0.04
+    n_estimators: 230
+    learning_rate: 0.045
     max_depth: 4
     subsample: 0.85
     random_state: 42
