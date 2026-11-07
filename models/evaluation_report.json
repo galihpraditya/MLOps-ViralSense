@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-11-07 15:13:20",
+  "candidate_run_id": "f2243426abe645098b98fb53a2207de0",
+  "run_name": "gbm_220",
+  "model_name": "ViralSense-ViralityClassifier",
+  "model_version": "3",
+  "current_stage": "Staging",
+  "verdict": "PASSED",
+  "all_passed": true,
+  "metrics": {
+    "accuracy": 0.9558823529411765,
+    "f1_score": 0.8,
+    "roc_auc": 0.9625292740046838,
+    "precision": 0.75,
+    "recall": 0.8571428571428571,
+    "single_latency_avg_ms": 1.8051637500548168,
+    "single_latency_p95_ms": 1.9314936002956529,
+    "batch_latency_ms": 1.641118999941682
+  },
+  "quality_gates": [
+    {
+      "metric": "Accuracy",
+      "actual": 0.9558823529411765,
+      "threshold": ">= 82.00%",
+      "passed": true,
+      "rule": "LK-01 Tabel 4.1: Target Akurasi >= 82%"
+    },
+    {
+      "metric": "Macro F1-Score",
+      "actual": 0.8,
+      "threshold": ">= 0.8000",
+      "passed": true,
+      "rule": "LK-01 Tabel 4.1: Target F1-Score >= 0.80"
+    },
+    {
+      "metric": "ROC-AUC Score",
+      "actual": 0.9625292740046838,
+      "threshold": ">= 0.8500",
+      "passed": true,
+      "rule": "Stabilitas separasi probabilitas kelas viral"
+    },
+    {
+      "metric": "Inference Latency (p95)",
+      "actual": 1.9314936002956529,
+      "threshold": "< 200.0 ms",
+      "passed": true,
+      "rule": "LK-01 Tabel 4.1: Latensi Inferensi < 200 ms (p95)"
+    }
+  ],
+  "lineage": {
+    "git_commit": "eafe3e47",
+    "git_branch": "feat/mlops-code-as-trigger",
+    "git_commit_msg": "Merge pull request #7 from galihpraditya/feat/mlflow-experiment-tracking",
+    "dvc_dataset_hash": "4ad531da424ea3e6a966acb6c4a5b648"
+  }
+}

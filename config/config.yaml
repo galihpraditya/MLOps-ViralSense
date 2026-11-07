@@ -52,6 +52,7 @@ mlflow:
   registered_model_name: "ViralSense-ViralityClassifier"
 
 model_training:
+  model_type: "gbm" # "gbm", "rf", "svm", "lr"
   test_size: 0.2
   random_state: 42
   target_column: "is_viral"
@@ -63,4 +64,20 @@ model_training:
     - "caption_length"
     - "word_count"
     - "has_hook_question"
+  hyperparameters:
+    n_estimators: 220
+    learning_rate: 0.04
+    max_depth: 4
+    subsample: 0.85
+    random_state: 42
 
+# Ambang Batas Evaluasi & Kriteria Keberhasilan (Sesuai LK-01 Tabel 4.1)
+evaluation:
+  thresholds:
+    min_accuracy: 0.82       # LK-01: Akurasi >= 82% (0.82)
+    min_f1_score: 0.80       # LK-01: Macro F1-Score >= 0.80
+    max_latency_ms: 200.0    # LK-01: Latensi Inferensi < 200 ms (p95)
+    min_roc_auc: 0.85        # Ambang batas pemisahan kelas ROC-AUC
+  candidate_run_path: "models/candidate_run.json"
+  evaluation_report_path: "models/evaluation_report.json"
+  evaluation_summary_md: "models/evaluation_report.md"

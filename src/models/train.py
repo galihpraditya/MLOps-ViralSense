@@ -10,6 +10,7 @@ Modul ini bertanggung jawab untuk:
 """
 
 import argparse
+import datetime
 import json
 import logging
 import os
@@ -691,9 +692,9 @@ def parse_cli_args():
     parser.add_argument(
         "--model_type",
         type=str,
-        default="rf",
+        default=None,
         choices=["rf", "gbm", "svm", "lr", "random_forest", "gradient_boosting", "svc", "logistic_regression"],
-        help="Tipe model untuk run tunggal",
+        help="Tipe model untuk run tunggal (default: diambil dari config.yaml)",
     )
     parser.add_argument(
         "--run_name",
@@ -704,7 +705,7 @@ def parse_cli_args():
     parser.add_argument(
         "--n_estimators",
         type=int,
-        default=100,
+        default=None,
         help="Jumlah estimators untuk pohon (Random Forest / Gradient Boosting)",
     )
     parser.add_argument(
@@ -716,25 +717,25 @@ def parse_cli_args():
     parser.add_argument(
         "--learning_rate",
         type=float,
-        default=0.1,
+        default=None,
         help="Learning rate untuk Gradient Boosting",
     )
     parser.add_argument(
         "--kernel",
         type=str,
-        default="rbf",
+        default=None,
         help="Kernel untuk SVM ('rbf', 'linear', 'poly')",
     )
     parser.add_argument(
         "--C",
         type=float,
-        default=1.0,
+        default=None,
         help="Parameter regulasi C (SVM / Logistic Regression)",
     )
     parser.add_argument(
         "--subsample",
         type=float,
-        default=0.85,
+        default=None,
         help="Subsample ratio untuk Gradient Boosting",
     )
     parser.add_argument(
@@ -748,6 +749,9 @@ def parse_cli_args():
 def main():
     """Fungsi eksekusi utama."""
     args = parse_cli_args()
+    cfg = load_config(args.config)
+    training_cfg = cfg.get("model_training", {})
+    cfg_hyperparams = training_cfg.get("hyperparameters", {})
 
     if args.run_all:
         results = run_experiment_suite(config_path=args.config)
@@ -756,22 +760,41 @@ def main():
     elif args.register_best:
         register_best_model(config_path=args.config)
     else:
+        model_type = args.model_type if args.model_type is not None else training_cfg.get("model_type", "gbm")
         hyperparams = {
-            "n_estimators": args.n_estimators,
-            "max_depth": args.max_depth,
-            "learning_rate": args.learning_rate,
-            "subsample": args.subsample,
-            "kernel": args.kernel,
-            "C": args.C,
+            "n_estimators": args.n_estimators if args.n_estimators is not None else cfg_hyperparams.get("n_estimators", 220),
+            "max_depth": args.max_depth if args.max_depth is not None else cfg_hyperparams.get("max_depth", 4),
+            "learning_rate": args.learning_rate if args.learning_rate is not None else cfg_hyperparams.get("learning_rate", 0.04),
+            "subsample": args.subsample if args.subsample is not None else cfg_hyperparams.get("subsample", 0.85),
+            "kernel": args.kernel if args.kernel is not None else cfg_hyperparams.get("kernel", "rbf"),
+            "C": args.C if args.C is not None else cfg_hyperparams.get("C", 1.0),
+            "random_state": int(cfg_hyperparams.get("random_state", training_cfg.get("random_state", 42))),
         }
         res = train_single_run(
-            model_type=args.model_type,
+            model_type=model_type,
             hyperparams=hyperparams,
             run_name=args.run_name,
             config_path=args.config,
         )
+
+        # Simpan ringkasan run kandidat untuk modul evaluasi otomatis
+        candidate_meta = {
+            "run_id": res["run_id"],
+            "run_name": res["run_name"],
+            "model_type": res["model_type"],
+            "hyperparams": res["hyperparams"],
+            "metrics": res["metrics"],
+            "dataset_version": get_dataset_version(),
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        cand_path_str = cfg.get("evaluation", {}).get("candidate_run_path", "models/candidate_run.json")
+        cand_path = PROJECT_ROOT / cand_path_str if not Path(cand_path_str).is_absolute() else Path(cand_path_str)
+        cand_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cand_path, "w", encoding="utf-8") as f:
+            json.dump(candidate_meta, f, indent=2)
+        logger.info(f"Metadata candidate run tersimpan ke: {cand_path}")
+
         if args.register:
-            cfg = load_config(args.config)
             reg_name = cfg.get("mlflow", {}).get("registered_model_name", "ViralSense-ViralityClassifier")
             run_id = res["run_id"]
             model_uri = f"runs:/{run_id}/model"

@@ -240,4 +240,5 @@ mlflow.db-journal
 *.joblib
 *.pdf
 docs/*.pdf
+!docs/Refleksi_Otomatisasi_Pemicu_MLOps_Silent_Failures.pdf
 
