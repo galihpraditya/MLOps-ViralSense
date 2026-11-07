@@ -442,12 +442,13 @@ def train_single_run(
         input_example = X_train.iloc[:3].copy()
 
         try:
-            # MLflow 3.x syntax
+            # MLflow 3.x syntax with standard cloudpickle serialization
             mlflow.sklearn.log_model(
                 sk_model=pipeline,
                 name="model",
                 signature=signature,
                 input_example=input_example,
+                serialization_format="cloudpickle",
             )
         except TypeError:
             # Fallback for MLflow < 3.0
@@ -456,6 +457,7 @@ def train_single_run(
                 artifact_path="model",
                 signature=signature,
                 input_example=input_example,
+                serialization_format="cloudpickle",
             )
 
 
