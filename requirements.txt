@@ -10,5 +10,5 @@ yt-dlp
 pyyaml
 pyarrow
 dvc-s3
-matplotlib
-
+pytest>=7.0.0
+reportlab>=4.0.0

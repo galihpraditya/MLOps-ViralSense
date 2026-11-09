@@ -333,6 +333,50 @@ dvc pull
 
 ---
 
+## 8. MLOps Automation: "Code as a Trigger" CI/CD Pipeline (LK-08)
+
+ViralSense enforces the core MLOps paradigm **"Code as a Trigger"** through an automated GitHub Actions workflow (`.github/workflows/mlops-automation.yaml`). Any modification to model code, preprocessing logic, or hyperparameters automatically initiates an end-to-end continuous training, evaluation, and registry pipeline without human intervention.
+
+```text
+[Code Change / Push to Main / PR]
+       │
+       ▼
+ [Tahap 1: Automated Testing] ──(pytest tests/)──► (Fail-Fast Gate)
+       │ (Pass)
+       ▼
+ [Tahap 2: Automated Training] ──(DVC Pull + train.py)──► [MLflow Experiment Tracking]
+       │
+       ▼
+ [Tahap 3: Model Evaluation] ──(LK-01 Benchmark Gates)──► Accuracy >= 82%, F1 >= 0.80, Latency < 200ms
+       │ (Pass)
+       ▼
+ [Tahap 4: Auto-Registry Staging] ──► MLflow Model Registry (Stage: Staging) ──► Inference Verification
+```
+
+### 4-Stage Automation Pipeline
+1. **Tahap 1: Automated Testing (Code Integrity Gate)**:
+   - Executes `pytest -v tests/` verifying data ingestion, preprocessing tokenization, model training pipelines, and inference schemas.
+   - Any failing test halts execution immediately (*fail-fast*), preventing compute consumption for broken code.
+2. **Tahap 2: Automated Retraining (DVC Data Lineage)**:
+   - Synchronizes latest dataset tracked by DVC (`data/raw/sample_raw_videos.csv.dvc`).
+   - Executes `python train.py` using parameters defined in `config/config.yaml`.
+   - Logs metrics, parameters, confusion matrix, and ROC curves to MLflow.
+3. **Tahap 3: Automated Evaluation & LK-01 Benchmarking**:
+   - Executes `python src/models/evaluate.py`.
+   - Enforces hard quality gates defined in LK-01 Table 4.1:
+     - **Accuracy**: $\ge 82\%$ ($0.82$)
+     - **Macro F1-Score**: $\ge 0.80$
+     - **Inference Latency (p95)**: $< 200\text{ ms}$
+     - **ROC-AUC**: $\ge 0.85$
+   - If any metric fails, the build terminates with exit code 1, rejecting the model candidate.
+4. **Tahap 4: Auto-Registry Update & Staging Transition**:
+   - Automatically registers the approved candidate to MLflow Model Registry (`ViralSense-ViralityClassifier`).
+   - Transitions model version stage to **`Staging`**.
+   - Binds cryptographic data lineage tags (Git Commit SHA, DVC dataset MD5 hash, and evaluation scores).
+   - Validates live inference readiness via `python src/models/verify_inference.py --stage Staging`.
+
+---
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

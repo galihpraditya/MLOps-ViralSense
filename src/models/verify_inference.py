@@ -140,8 +140,9 @@ def load_production_model(
 
 def run_inference_verification(
     config_path: str = "config/config.yaml",
+    stage: str = "Production",
 ) -> Dict[str, Any]:
-    """Menjalankan suite pengujian inferensi komprehensif pada model Production."""
+    """Menjalankan suite pengujian inferensi komprehensif pada model MLflow Registry (Production/Staging)."""
     config_file = PROJECT_ROOT / config_path
     if config_file.exists():
         with open(config_file, "r", encoding="utf-8") as f:
@@ -154,13 +155,13 @@ def run_inference_verification(
     model_name = mlflow_cfg.get("registered_model_name", "ViralSense-ViralityClassifier")
 
     logger.info("=========================================================================")
-    logger.info("       MEMULAI SUITE VERIFIKASI INFERENSI MODEL REGISTRY PRODUCTION       ")
+    logger.info(f"       MEMULAI SUITE VERIFIKASI INFERENSI MODEL REGISTRY ({stage.upper()})       ")
     logger.info("=========================================================================")
 
     # 1. Pemuatan Model
     start_load = time.perf_counter()
     model, resolved_uri = load_production_model(
-        model_name=model_name, stage="Production", tracking_uri=tracking_uri
+        model_name=model_name, stage=stage, tracking_uri=tracking_uri
     )
     load_time_ms = (time.perf_counter() - start_load) * 1000
 
@@ -249,11 +250,18 @@ def run_inference_verification(
 
 def main():
     """CLI entrypoint."""
-    parser = argparse.ArgumentParser(description="Verifikasi Kesiapan Inferensi Model Production MLflow")
+    parser = argparse.ArgumentParser(description="Verifikasi Kesiapan Inferensi Model Registry MLflow")
     parser.add_argument("--config", type=str, default="config/config.yaml", help="Path konfigurasi pipeline")
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="Production",
+        choices=["Production", "Staging", "None"],
+        help="Stage model registry yang akan diuji (default: Production)",
+    )
     args = parser.parse_args()
 
-    run_inference_verification(config_path=args.config)
+    run_inference_verification(config_path=args.config, stage=args.stage)
 
 
 if __name__ == "__main__":
