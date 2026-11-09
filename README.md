@@ -375,10 +375,6 @@ ViralSense enforces the core MLOps paradigm **"Code as a Trigger"** through an a
    - Binds cryptographic data lineage tags (Git Commit SHA, DVC dataset MD5 hash, and evaluation scores).
    - Validates live inference readiness via `python src/models/verify_inference.py --stage Staging`.
 
-### Academic Reflection on Preventing Silent Failures
-A comprehensive academic reflection analyzing how this automated pipeline eradicates silent failures in production ML systems is available at:
-📄 **[Refleksi_Otomatisasi_Pemicu_MLOps_Silent_Failures.pdf](docs/Refleksi_Otomatisasi_Pemicu_MLOps_Silent_Failures.pdf)**
-
 ---
 
 ## License
